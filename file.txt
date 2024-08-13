@@ -1,0 +1,3 @@
+This is my first file reading experience
+I know I am not a rust programmer yet, but I am a season programmer
+Watch out!
