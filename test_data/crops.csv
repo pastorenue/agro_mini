@@ -1,0 +1,7 @@
+botanica_name,verbose_name,species,description,min_bags,is_harvestable,is_sowable,is_gmo,harvest_date
+Saccharum officinarum,Cane Sugar,Plantae,,3,false,true,false,
+Oryza sativa,Rice,Plantae,,12,true,true,true,
+Oryza sativa,Rice,Plantae,,2,true,true,false,
+Zea mays,Corn,Plantae,,20,true,false,false,
+Triticum,Wheat,Plantae,,1,true,true,true,
+Triticum,Wheat,Plantae,,11,true,false,false,

@@ -1,12 +1,33 @@
-struct Crop {
-    botanica_name: String,
-    verbose_name: String,
-    species: String,
-    description: Option<String>,
-    min_bags: u32,
-    is_harvestable: bool,
-    is_sowable: bool,
-    is_gmo: bool,
+use serde::{Deserialize, Serialize};
+use serde::de::{self, Deserializer};
+use chrono::prelude::*;
+
+
+fn parse_date<'de, D>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error>
+where 
+    D: Deserializer<'de> {
+        let s = String::deserialize(deserializer)?;
+        if s.is_empty() {
+            return Ok(None);
+        }
+        DateTime::parse_from_str(&s, "%Y-%m-%d")
+            .map(|date| Some(date.with_timezone(&Utc)))
+            .map_err(de::Error::custom)
+}
+
+
+#[derive(Deserialize, Debug)]
+pub struct Crop {
+    pub botanica_name: String,
+    pub verbose_name: String,
+    pub species: String,
+    pub description: Option<String>,
+    pub min_bags: u32,
+    pub is_harvestable: bool,
+    pub is_sowable: bool,
+    pub is_gmo: bool,
+    #[serde(deserialize_with = "parse_date")]
+    pub harvest_date: Option<DateTime<Utc>>,
 }
 
 struct Location {
