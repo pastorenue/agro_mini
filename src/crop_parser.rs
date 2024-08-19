@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use csv::ReaderBuilder;
-use crate::dto::Crop;
+use crate::dto::{Crop, GrowthEvent, GrowthStage};
 use chrono::prelude::*;
 
 
@@ -28,8 +28,9 @@ fn extract_crops(file: &str) -> Result<Vec<Crop>, Box<dyn Error>> {
         .from_reader(file_content);
 
     for result in reader.deserialize() {
-        let line: Crop = result?;
-
+        let mut line: Crop = result?;
+        line.current_stage = Some(GrowthStage::Seed);
+        
         // Process the line in a crop dto
         crops.push(line);
     }
@@ -48,4 +49,21 @@ pub fn group_crops() {
     }
 
     println!("{:?}", group);
+}
+
+pub fn split_a_crop() {
+    let mut crops = extract_crops("test_data/crops.csv").unwrap_or_else(|err| panic!("Error: {}", err));
+    println!("Length of crops before split: {}", crops.len());
+    
+    let mut first_crop = crops.pop().unwrap();
+    let splits = Crop::split(&mut first_crop, 3);
+
+    println!("Length of splits: {}", splits.len());
+    println!("Splits: {:?}", splits);
+    println!("----------------------------------------");
+    println!("Length of crops after split: {}", crops.len());
+    let x_crop = first_crop.simulate_growth();
+    println!("First crop: {:?}", x_crop);
+    println!("New split_size of first_crop: {:?}", x_crop.split_size);
+    println!("{:?}", x_crop.current_stage.unwrap_or_default());
 }

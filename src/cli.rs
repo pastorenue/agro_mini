@@ -14,9 +14,13 @@ struct AgroCLI {
 
 #[derive(Subcommand)]
 enum Commands {
-   Create {
+   Crop {
+
        #[arg(short, long)]
-       list: bool
+       list: bool,
+
+       #[arg(short, long)]
+       get: Option<String>,
    }
 }
 
