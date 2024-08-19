@@ -2,17 +2,18 @@ use std::fmt::Debug;
 use rand::prelude::*;
 use serde::Deserialize;
 
+use crate::seeds::SeedType;
+
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub struct Crop {
     pub botanica_name: String,
     pub verbose_name: String,
     pub species: String,
-    pub description: Option<String>,
-    pub min_bags: u32,
     pub is_harvestable: bool,
     pub is_sowable: bool,
     pub is_gmo: bool,
+    pub description: Option<String>,
     pub harvest_date: Option<String>,
     pub split_size: Option<f32>,
     pub days_in_stage: Option<u32>,
@@ -20,56 +21,56 @@ pub struct Crop {
     pub current_stage: Option<GrowthStage>,
 }
 
-struct Location {
-    address: Address,
-    is_virtual: bool,
-    longitude: Option<f32>,
-    latitude : Option<f32>,
+pub struct Location {
+    pub address: Address,
+    pub is_virtual: bool,
+    pub longitude: Option<f32>,
+    pub latitude : Option<f32>,
 }
 
-struct Address {
-    house_number: u32,
-    post_code: u32,
-    street: String,
-    city: String,
-    country: String,
+pub struct Address {
+    pub house_number: u32,
+    pub post_code: String,
+    pub street: String,
+    pub city: String,
+    pub country: String,
 }
 
-struct FarmSize {
-    width: u32,
-    length: u32
+pub struct FarmSize {
+    pub width: u32,
+    pub length: u32
 }
 
-struct UserInfo {
-    first_name: String,
-    last_name: String,
-    email: String,
-    phone: Option<String>,
-    address: Option<Address>,
-    website_url: Option<String>,
+pub struct UserInfo {
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
+    pub phone: Option<String>,
+    pub address: Option<Address>,
+    pub website_url: Option<String>,
 }
 
-struct Farm {
-    crops: Vec<Crop>,
-    location: Location,
-    size: FarmSize,
-    owner: UserInfo,
-    security_code: String,
-    is_active: bool,
-    is_trackable: bool,
+pub struct Farm {
+    pub crops: Vec<Crop>,
+    pub location: Location,
+    pub size: FarmSize,
+    pub owner: UserInfo,
+    pub security_code: String,
+    pub is_active: bool,
+    pub is_trackable: Option<bool>,
+    pub is_plant_ready: Option<bool>,
+    pub is_ready_for_harvest: Option<bool>,
 }
 
 impl Crop {
-
-    fn new() -> Self {
+    pub fn new(bot_name: String, verbose_name: String, species: String, description: Option<String>) -> Self {
         Self {
-            botanica_name: String::new(),
-            verbose_name: String::new(),
-            species: String::new(),
-            description: None,
-            min_bags: 0,
-            is_harvestable: false,
-            is_sowable: false,
+            botanica_name: bot_name,
+            verbose_name: verbose_name,
+            species: species,
+            description: description,
+            is_harvestable: true,
+            is_sowable: true,
             is_gmo: false,
             harvest_date: None,
             split_size: Some(1.0),
@@ -99,7 +100,8 @@ impl Crop {
     }
 
     fn _advance_stage(&mut self) -> () {
-        let max_growth_days = self.current_stage.as_ref().unwrap().get_days();
+        let seed_type = SeedType::from_str(&self.verbose_name).unwrap();
+        let max_growth_days = self.current_stage.as_ref().unwrap().get_days(seed_type);
         if self.days_in_stage.unwrap() >= max_growth_days {
             self.days_in_stage = Some(0);
             match self.current_stage {
@@ -130,6 +132,10 @@ impl Crop {
         
         instance.split_size = Some((instance.split_size.unwrap_or(*new_size) * 100.0).round() / 100.0); 
         splits
+    }
+
+    fn apply_fertilizer(&mut self) -> () {
+        // TODO
     }
 }
 
@@ -163,8 +169,8 @@ impl GrowthStage {
     fn get_stage(&self) -> String {
         match self {
             GrowthStage::Seed => String::from("seed"),
-            GrowthStage::Seedling => String::from("seedling"),
             GrowthStage::Germination => String::from("germination"),
+            GrowthStage::Seedling => String::from("seedling"),
             GrowthStage::Vegetative => String::from("vegetative"),
             GrowthStage::Flowering => String::from("flowering"),
             GrowthStage::Fruiting => String::from("fruiting"),
@@ -174,16 +180,64 @@ impl GrowthStage {
         }
     }
 
-    fn get_days(&self) -> u32 {
+    pub fn get_days(&self, seed_type: SeedType) -> u32 {
         match self {
-            GrowthStage::Seed => 3,
-            GrowthStage::Seedling => 3,
-            GrowthStage::Germination => 7,
-            GrowthStage::Vegetative => 30,
-            GrowthStage::Flowering => 20,
-            GrowthStage::Fruiting => 15,
-            GrowthStage::Maturity => 10,
-            GrowthStage::Harvest => 5,
+            GrowthStage::Seed => match seed_type {
+                SeedType::Sunflower(..) => 3,
+                SeedType::Pea(..) => 3,
+                SeedType::Carrot(..) => 3,
+                SeedType::Tomato(..) => 3,
+                SeedType::Broccoli(..) => 3,
+            },
+            GrowthStage::Germination => match seed_type {
+                SeedType::Sunflower(..) => 7,
+                SeedType::Pea(..) => 7,
+                SeedType::Carrot(..) => 10,
+                SeedType::Tomato(..) => 7,
+                SeedType::Broccoli(..) => 5,  
+            },
+            GrowthStage::Seedling => match seed_type {
+                SeedType::Sunflower(..) => 10,
+                SeedType::Pea(..) => 14,
+                SeedType::Carrot(..) => 17,
+                SeedType::Tomato(..) => 10,
+                SeedType::Broccoli(..) => 12,
+            },
+            GrowthStage::Vegetative => match seed_type {
+                SeedType::Sunflower(..) => 30,
+                SeedType::Pea(..) => 30,
+                SeedType::Carrot(..) => 30,
+                SeedType::Tomato(..) => 30,
+                SeedType::Broccoli(..) => 30,
+            },
+            GrowthStage::Flowering => match seed_type {
+                SeedType::Sunflower(..) => 20,
+                SeedType::Pea(..) => 20,
+                SeedType::Carrot(..) => 20,
+                SeedType::Tomato(..) => 20,
+                SeedType::Broccoli(..) => 20,
+            },
+            GrowthStage::Fruiting => match seed_type {
+                SeedType::Sunflower(..) => 10,
+                SeedType::Pea(..) => 10,
+                SeedType::Carrot(..) => 10,
+                SeedType::Tomato(..) => 10,
+                SeedType::Broccoli(..) => 10,
+            },
+            GrowthStage::Maturity => match seed_type {
+                SeedType::Sunflower(..) => 5,
+                SeedType::Pea(..) => 5,
+                SeedType::Carrot(..) => 5,
+                SeedType::Tomato(..) => 5,
+                SeedType::Broccoli(..) => 5,
+            },
+            GrowthStage::Harvest => match seed_type {
+                SeedType::Sunflower(..) => 5,
+                SeedType::Pea(..) => 5,
+                SeedType::Carrot(..) => 5,
+                SeedType::Tomato(..) => 5,
+                SeedType::Broccoli(..) => 5,
+            },
             GrowthStage::Rot => 0,
         }
     }
@@ -194,11 +248,11 @@ impl GrowthStage {
                 GrowthEvent::Sync => GrowthStage::Seedling,
                 GrowthEvent::Fail => GrowthStage::Rot
             }
-            GrowthStage::Seedling => match event {
-                GrowthEvent::Sync => GrowthStage::Germination,
+            GrowthStage::Germination => match event {
+                GrowthEvent::Sync => GrowthStage::Seedling,
                 GrowthEvent::Fail => GrowthStage::Rot
             },
-            GrowthStage::Germination => match event {
+            GrowthStage::Seedling => match event {
                 GrowthEvent::Sync => GrowthStage::Vegetative,
                 GrowthEvent::Fail => GrowthStage::Rot
             },
@@ -219,6 +273,15 @@ impl GrowthStage {
                 GrowthEvent::Fail => GrowthStage::Rot
             },
             _ => GrowthStage::Rot
+        }
+    }
+}
+
+impl FarmSize {
+    fn new(width: u32, length: u32) -> FarmSize {
+        FarmSize {
+            width,
+            length
         }
     }
 }

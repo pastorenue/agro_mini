@@ -1,0 +1,5 @@
+botanica_name,verbose_name,species,description,is_gmo,quantity_per_bag
+Lathyrus oleraceus,Pea,Fabaceae,,false,1
+Helianthus,Sun Flower,Asteraceae,,false,3
+Daucus carota subsp. sativus,Carrot,Apiaceae,,true,2
+Solanum lycopersicum,Tomato,Solanales,,false,1
