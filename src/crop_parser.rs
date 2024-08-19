@@ -6,7 +6,7 @@ use crate::dto::{Crop, GrowthEvent, GrowthStage};
 use chrono::prelude::*;
 
 
-fn read_file(file: &str) -> Result<File, std::io::Error> {
+pub fn read_file(file: &str) -> Result<File, Box<dyn Error>> {
     let file_content = File::open(file);
     let actual_res = match file_content {
         Ok(content) => content,
@@ -16,11 +16,30 @@ fn read_file(file: &str) -> Result<File, std::io::Error> {
             })
         }
     };
-
     Ok(actual_res)
 }
 
-fn extract_crops(file: &str) -> Result<Vec<Crop>, Box<dyn Error>> {
+pub fn extract_content(file: &str) -> Vec<HashMap<String, String>> {
+    let actual_res = read_file(file).unwrap_or_else(|err| panic!("Error: {}", err));
+    let mut reader = ReaderBuilder::new()
+        .has_headers(true)
+        .from_reader(actual_res);
+
+    let mut records = Vec::new();
+    let headers = reader.headers().unwrap().clone();
+    for result in reader.records() {
+        let line = result.unwrap();
+        let mut map = HashMap::new();
+        for (header, value) in headers.iter().zip(line.iter()) {
+            map.insert(header.to_string(), value.to_string());
+        }
+        records.push(map);
+    }
+
+    records
+}
+
+pub fn extract(file: &str) -> Result<Vec<Crop>, Box<dyn Error>> {
     let file_content = read_file(file)?;
     let mut crops: Vec<Crop> = Vec::new();
     let mut reader = ReaderBuilder::new()
@@ -40,7 +59,7 @@ fn extract_crops(file: &str) -> Result<Vec<Crop>, Box<dyn Error>> {
 
 pub fn group_crops() {
     let mut group: HashMap<String, i32> = HashMap::new();
-    let crops = extract_crops("test_data/crops.csv").unwrap_or_else(|err| panic!("Error: {}", err));
+    let crops = extract("test_data/crops.csv").unwrap_or_else(|err| panic!("Error: {}", err));
     println!("{:?}", crops);
 
     for crop in crops {
@@ -52,7 +71,7 @@ pub fn group_crops() {
 }
 
 pub fn split_a_crop() {
-    let mut crops = extract_crops("test_data/crops.csv").unwrap_or_else(|err| panic!("Error: {}", err));
+    let mut crops = extract("test_data/crops.csv").unwrap_or_else(|err| panic!("Error: {}", err));
     println!("Length of crops before split: {}", crops.len());
     
     let mut first_crop = crops.pop().unwrap();
