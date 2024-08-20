@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use chrono::Utc;
 use rand::prelude::*;
 use crate::dto::{Crop, Farm, GrowthStage};
 use crate::seeds::SeedType;
@@ -14,10 +15,11 @@ pub struct PlantService {
 }
 
 static WEEDING_FARM_FREQUENCY: u32 = 7; // every 7 days
-static IRRIGATION_FREQUENCY: u32 = 2; // every 2 days
+static IRRIGATION_FREQUENCY: u32 = 3; // every 2 days
 const FERTILIZING_FREQUENCY: u32 = 14; // every 14 days
 const DAYS_TO_WAIT_BEFORE_PLANTING: u32 = 7; // 7 days
 const FUMIGATION_TIME: u32 = 14; // 14 days after planting
+const PLANTING_WINDOW: u32 = 70; // 70 days - from planting to harvest
 static TOTAL_HARVESTED_SEEDS : Mutex<u32> = Mutex::new(0);
 
 impl PlantService {
@@ -47,15 +49,15 @@ impl PlantService {
             
             // process crop activities
             if self.planting_is_initiated {
-                println!("Processing crop activities: {:?}", self.farm.crops);
                 self._crop_process();
             }
             days_count += 1;
             
-            if *TOTAL_HARVESTED_SEEDS.lock().unwrap() == self.farm.crops.len() as u32 {
-                println!("All done!");
-                self.is_all_harvested = true;
-                break;
+            if days_count >= PLANTING_WINDOW {
+                self.harvest();
+                if self.is_all_harvested {
+                    break;
+                }
             }
         }
     }
@@ -122,13 +124,15 @@ impl PlantService {
 
     fn harvest(&mut self) {
         // Simulate Harvest
-        println!("Its time to harvest...");
+        println!("Its harvesting season...");
+        let mut rng = thread_rng();
+        let rand_harvest_duration = rng.gen_range(1..5); // Generate a random number between 1 and 5
         let num = TOTAL_HARVESTED_SEEDS.lock().unwrap();
         if self.farm.crops.len() == *num as usize {
             self.farm.is_ready_for_harvest = Some(true);
             self.is_all_harvested = true;
         }
-        thread::sleep(Duration::from_secs(2));
+        thread::sleep(Duration::from_secs(rand_harvest_duration));
         println!("Harvesting completed!!!");
         println!();
     }
@@ -165,10 +169,12 @@ impl PlantService {
                         *crop = PlantService::_show_update(crop);
                     },
                     GrowthStage::Harvest => {
-                        *crop = PlantService::_show_update(crop);
                         let mut num = TOTAL_HARVESTED_SEEDS.lock().unwrap();
-                        *num += 1;
-                        println!("Crop: {:?} -> has been harvested", crop.clone().verbose_name);
+                        if !crop.is_harvested() {
+                            *num += 1;
+                            crop.harvest_date = Some(Utc::now().to_string());
+                            println!("Crop: {:?} -> has been harvested", crop.clone().verbose_name);
+                        }
                     },
                     _ => {}
                 }
@@ -180,9 +186,8 @@ impl PlantService {
         let seed_type = &crop.clone().verbose_name;
         let stage = crop.current_stage.as_ref().unwrap();
         let stage_time = stage.get_days(SeedType::from_str(seed_type).unwrap());
-        println!("{}: {} --> {}",crop.verbose_name, crop.days_in_stage.unwrap(), stage_time);
-        if crop.days_in_stage.unwrap() == stage_time {
-            println!("Crop: {:?} --> {:?} stage", crop.clone().verbose_name, stage);
+        if crop.days_in_stage.unwrap() == stage_time && !crop.is_inactive() {
+            print!("{:?} --> {:?} stage | ", crop.clone().verbose_name, stage);
             crop.advance_to_next_stage();
             crop.days_in_stage = Some(0);
         }

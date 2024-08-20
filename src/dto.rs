@@ -106,7 +106,7 @@ impl Crop {
         if self.days_in_stage.unwrap() == max_growth_days && !self.is_inactive() {
             match self.current_stage {
                 Some(GrowthStage::Seed) => {
-                    println!("Transiting from {:?} -> {:?}", self.current_stage.as_ref().unwrap(), GrowthStage::Germination);
+                    println!("Transiting from {:?} -> {:?}",self.current_stage.as_ref().unwrap(), GrowthStage::Germination);
                     self.current_stage = Some(GrowthStage::Germination)
                 },
                 Some(GrowthStage::Germination) => {
@@ -138,11 +138,11 @@ impl Crop {
         }
     }
 
-    fn is_inactive(&self) -> bool {
+    pub fn is_inactive(&self) -> bool {
         self.current_stage == Some(GrowthStage::Rot) || self.current_stage == Some(GrowthStage::Harvest)
     }
 
-    fn is_harvested(&self) -> bool {
+    pub fn is_harvested(&self) -> bool {
         self.is_harvestable && self.harvest_date.is_some()
     }
 
@@ -229,25 +229,25 @@ impl GrowthStage {
                 SeedType::Broccoli(..) => 12,
             },
             GrowthStage::Vegetative => match seed_type {
-                SeedType::Sunflower(..) => 30,
-                SeedType::Pea(..) => 30,
-                SeedType::Carrot(..) => 30,
-                SeedType::Tomato(..) => 30,
-                SeedType::Broccoli(..) => 30,
+                SeedType::Sunflower(..) => 12,
+                SeedType::Pea(..) => 13,
+                SeedType::Carrot(..) => 14,
+                SeedType::Tomato(..) => 11,
+                SeedType::Broccoli(..) => 21,
             },
             GrowthStage::Flowering => match seed_type {
-                SeedType::Sunflower(..) => 20,
-                SeedType::Pea(..) => 20,
+                SeedType::Sunflower(..) => 8,
+                SeedType::Pea(..) => 11,
                 SeedType::Carrot(..) => 20,
-                SeedType::Tomato(..) => 20,
-                SeedType::Broccoli(..) => 20,
+                SeedType::Tomato(..) => 7,
+                SeedType::Broccoli(..) => 16,
             },
             GrowthStage::Fruiting => match seed_type {
                 SeedType::Sunflower(..) => 10,
-                SeedType::Pea(..) => 10,
-                SeedType::Carrot(..) => 10,
-                SeedType::Tomato(..) => 10,
-                SeedType::Broccoli(..) => 10,
+                SeedType::Pea(..) => 7,
+                SeedType::Carrot(..) => 9,
+                SeedType::Tomato(..) => 5,
+                SeedType::Broccoli(..) => 7,
             },
             GrowthStage::Maturity => match seed_type {
                 SeedType::Sunflower(..) => 5,
@@ -257,11 +257,11 @@ impl GrowthStage {
                 SeedType::Broccoli(..) => 5,
             },
             GrowthStage::Harvest => match seed_type {
-                SeedType::Sunflower(..) => 5,
-                SeedType::Pea(..) => 5,
+                SeedType::Sunflower(..) => 3,
+                SeedType::Pea(..) => 3,
                 SeedType::Carrot(..) => 5,
-                SeedType::Tomato(..) => 5,
-                SeedType::Broccoli(..) => 5,
+                SeedType::Tomato(..) => 1,
+                SeedType::Broccoli(..) => 3,
             },
             GrowthStage::Rot => 0,
         }
