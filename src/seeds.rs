@@ -58,7 +58,6 @@ pub struct SeedBag {
 impl SeedBag {
     pub fn new(quantity: u32, seed_type: &str, species: String) -> Option<Self> {
         let seed = SeedType::from_str(seed_type);
-        println!("Seed type: {:?}", seed);
         match seed {
             Ok(seed) => Some(Self {
                 quantity,
