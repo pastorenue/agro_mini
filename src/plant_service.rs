@@ -7,11 +7,15 @@ use crate::seeds::SeedType;
 use std::time::Duration;
 use std::thread;
 use std::sync::Mutex;
+use std::collections::HashMap;
+use crate::weather_service::WeatherCondition;
+
 
 pub struct PlantService {
     farm: Farm,
     is_all_harvested: bool,
     planting_is_initiated: bool,
+    harvest_stats: Option<HashMap<String, u32>>,
 }
 
 static WEEDING_FARM_FREQUENCY: u32 = 7; // every 7 days
@@ -24,15 +28,18 @@ static TOTAL_HARVESTED_SEEDS : Mutex<u32> = Mutex::new(0);
 
 impl PlantService {
     pub fn new(farm: Farm) -> Self {
+        let harvest_stats: HashMap<_, _> = HashMap::new();
         Self {
             farm,
             planting_is_initiated: false,
             is_all_harvested: false,
+            harvest_stats: Some(harvest_stats),
         }
     }
 
     pub fn run(mut self) {
         let mut days_count = 1;
+        println!("Running farm simulation for {:?}", self.farm);
 
         loop {
             println!();
@@ -49,7 +56,7 @@ impl PlantService {
             
             // process crop activities
             if self.planting_is_initiated {
-                self._crop_process();
+                self._crop_process(days_count);
             }
             days_count += 1;
             
@@ -60,6 +67,9 @@ impl PlantService {
                 }
             }
         }
+
+        println!("Farm simulation completed!!!");
+        println!("Simumation Stats: {:?}", self.harvest_stats);
     }
 
     fn fumigate_seedlings(&self) {
@@ -108,10 +118,15 @@ impl PlantService {
 
     fn irrigate(&self) {
         // Simulate Irrigation
-        println!("Irrigation started");
-        thread::sleep(Duration::from_secs(2));
-        println!("Irrigation completed");
-        println!();
+        let weather_condition = WeatherCondition::generate_random_weather_condition();
+        if !(weather_condition == WeatherCondition::Rainy || weather_condition == WeatherCondition::Stormy) {
+            println!("Irrigation started");
+            thread::sleep(Duration::from_secs(2));
+            println!("Irrigation completed");
+            println!();
+        } else {
+            println!("No need to irrigate. Today's weather is {:?}", weather_condition);
+        }
     }
 
     fn apply_fertilizer(&self) {
@@ -124,7 +139,6 @@ impl PlantService {
 
     fn harvest(&mut self) {
         // Simulate Harvest
-        println!("Its harvesting season...");
         let mut rng = thread_rng();
         let rand_harvest_duration = rng.gen_range(1..5); // Generate a random number between 1 and 5
         let num = TOTAL_HARVESTED_SEEDS.lock().unwrap();
@@ -133,11 +147,10 @@ impl PlantService {
             self.is_all_harvested = true;
         }
         thread::sleep(Duration::from_secs(rand_harvest_duration));
-        println!("Harvesting completed!!!");
         println!();
     }
 
-    fn _crop_process(&mut self) {
+    fn _crop_process(&mut self, current_days: u32) {
         for crop in self.farm.crops.iter_mut() {
             if crop.is_harvestable {
                 *crop = crop.clone().grow(1);
@@ -173,7 +186,15 @@ impl PlantService {
                         if !crop.is_harvested() {
                             *num += 1;
                             crop.harvest_date = Some(Utc::now().to_string());
-                            println!("Crop: {:?} -> has been harvested", crop.clone().verbose_name);
+                            let map: &mut HashMap<String, u32> = self.harvest_stats.as_mut().unwrap();
+                            if !map.contains_key(&crop.verbose_name) {
+                                map.insert(crop.verbose_name.to_string(), current_days);
+                            }
+                            println!(
+                                "Crop: {:?} -> Harvest completed after {} days!!!",
+                                crop.clone().verbose_name,
+                                current_days
+                            );
                         }
                     },
                     _ => {}

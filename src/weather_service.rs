@@ -1,7 +1,10 @@
-use serde::{Deserialize, Serialize};
+#![allow(dead_code)]
 
-#[derive(Debug)]
-enum WeatherCondition {
+use serde::{Deserialize, Serialize};
+use rand::prelude::*;
+
+#[derive(Debug, PartialEq)]
+pub enum WeatherCondition {
     Sunny,
     Cloudy,
     Rainy,
@@ -37,7 +40,7 @@ impl WeatherCondition {
         }
     }
 
-    fn generate_random_weather_condition() -> WeatherCondition {
+    pub fn generate_random_weather_condition() -> WeatherCondition {
         let mut rng = rand::thread_rng();
         let random = rng.gen_range(0..=4);
         match random {
@@ -51,7 +54,7 @@ impl WeatherCondition {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug)]
 struct WeatherData {
     temperature: f32,
     humidity: f32,

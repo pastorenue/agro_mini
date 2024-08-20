@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 use rand::prelude::*;
 use serde::Deserialize;
 
@@ -23,6 +23,8 @@ pub struct Crop {
     pub current_stage: Option<GrowthStage>,
 }
 
+
+#[derive(Debug)]
 pub struct Location {
     pub address: Address,
     pub is_virtual: bool,
@@ -30,6 +32,7 @@ pub struct Location {
     pub latitude : Option<f32>,
 }
 
+#[derive(Debug)]
 pub struct Address {
     pub house_number: u32,
     pub post_code: String,
@@ -38,11 +41,14 @@ pub struct Address {
     pub country: String,
 }
 
+#[derive(Debug)]
 pub struct FarmSize {
     pub width: u32,
     pub length: u32
 }
 
+
+#[derive(Debug)]
 pub struct UserInfo {
     pub first_name: String,
     pub last_name: String,
@@ -52,6 +58,8 @@ pub struct UserInfo {
     pub website_url: Option<String>,
 }
 
+
+#[derive(Debug)]
 pub struct Farm {
     pub crops: Vec<Crop>,
     pub location: Location,
@@ -309,4 +317,20 @@ impl FarmSize {
             length
         }
     }
+}
+
+#[derive(Debug)]
+struct Stats {
+    growth_cycle: u32,
+    num_seeds_planted: u32,
+    num_harvested: u32,
+    num_rotten: u32,
+    harvest_date: Option<String>,
+}
+
+#[derive(Debug)]
+struct HarvestData {
+    farm: Farm,
+    harvest_stats: HashMap<String, Stats>,
+    metadata: Option<HashMap<String, String>>
 }
