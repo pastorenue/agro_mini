@@ -1,5 +1,4 @@
-use crate::dto::{Address, Crop, Farm, FarmSize, GrowthEvent, GrowthStage, Location, UserInfo};
-use crate::crop_parser::extract;
+use crate::dto::{Address, Crop, Farm, FarmSize, Location, UserInfo};
 use crate::seeds::SeedBag;
 
 

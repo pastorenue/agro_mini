@@ -1,6 +1,5 @@
-use std::path::Component;
+#![allow(dead_code)]
 
-use crate::dto::Crop;
 use crate::crop_parser::extract_content;
 
 

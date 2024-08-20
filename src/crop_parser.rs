@@ -1,9 +1,10 @@
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use csv::ReaderBuilder;
-use crate::dto::{Crop, GrowthEvent, GrowthStage};
-use chrono::prelude::*;
+use crate::dto::{Crop, GrowthStage};
 
 
 pub fn read_file(file: &str) -> Result<File, Box<dyn Error>> {

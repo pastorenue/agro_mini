@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::fmt::Debug;
 use rand::prelude::*;
 use serde::Deserialize;
@@ -94,33 +96,53 @@ impl Crop {
             }
             _ => (),
         }
-        self._advance_stage();
 
         self
     }
 
-    fn _advance_stage(&mut self) -> () {
+    pub fn advance_to_next_stage(&mut self) -> () {
         let seed_type = SeedType::from_str(&self.verbose_name).unwrap();
         let max_growth_days = self.current_stage.as_ref().unwrap().get_days(seed_type);
         if self.days_in_stage.unwrap() == max_growth_days && !self.is_inactive() {
             match self.current_stage {
-                Some(GrowthStage::Seed) => self.current_stage = Some(GrowthStage::Germination),
-                Some(GrowthStage::Germination) => self.current_stage = Some(GrowthStage::Seedling),
-                Some(GrowthStage::Seedling) => self.current_stage = Some(GrowthStage::Vegetative),
-                Some(GrowthStage::Vegetative) => self.current_stage = Some(GrowthStage::Flowering),
-                Some(GrowthStage::Flowering) => self.current_stage = Some(GrowthStage::Fruiting),
-                Some(GrowthStage::Fruiting) => self.current_stage = Some(GrowthStage::Maturity),
-                Some(GrowthStage::Maturity) => self.current_stage = Some(GrowthStage::Harvest),
+                Some(GrowthStage::Seed) => {
+                    println!("Transiting from {:?} -> {:?}",self.current_stage.as_ref().unwrap(), GrowthStage::Germination);
+                    self.current_stage = Some(GrowthStage::Germination)
+                },
+                Some(GrowthStage::Germination) => {
+                    println!("Transiting from {:?} -> {:?}", self.current_stage.as_ref().unwrap(), GrowthStage::Seedling);
+                    self.current_stage = Some(GrowthStage::Seedling)
+                },
+                Some(GrowthStage::Seedling) => {
+                    println!("Transiting from {:?} -> {:?}", self.current_stage.as_ref().unwrap(), GrowthStage::Vegetative);
+                    self.current_stage = Some(GrowthStage::Vegetative)
+                },
+                Some(GrowthStage::Vegetative) => {
+                    println!("Transiting from {:?} -> {:?}", self.current_stage.as_ref().unwrap(), GrowthStage::Flowering);
+                    self.current_stage = Some(GrowthStage::Flowering)
+                },
+                Some(GrowthStage::Flowering) => {
+                    println!("Transiting from {:?} -> {:?}", self.current_stage.as_ref().unwrap(), GrowthStage::Fruiting);
+                    self.current_stage = Some(GrowthStage::Fruiting)
+                },
+                Some(GrowthStage::Fruiting) => {
+                    println!("Transiting from {:?} -> {:?}", self.current_stage.as_ref().unwrap(), GrowthStage::Maturity);
+                    self.current_stage = Some(GrowthStage::Maturity)
+                },
+                Some(GrowthStage::Maturity) => {
+                    println!("Transiting from {:?} -> {:?}", self.current_stage.as_ref().unwrap(), GrowthStage::Harvest);
+                    self.current_stage = Some(GrowthStage::Harvest)
+                },
                 _ => self.current_stage = Some(GrowthStage::Rot)
             };
         }
     }
 
-    fn is_inactive(&self) -> bool {
+    pub fn is_inactive(&self) -> bool {
         self.current_stage == Some(GrowthStage::Rot) || self.current_stage == Some(GrowthStage::Harvest)
     }
 
-    fn is_harvested(&self) -> bool {
+    pub fn is_harvested(&self) -> bool {
         self.is_harvestable && self.harvest_date.is_some()
     }
 
@@ -207,25 +229,25 @@ impl GrowthStage {
                 SeedType::Broccoli(..) => 12,
             },
             GrowthStage::Vegetative => match seed_type {
-                SeedType::Sunflower(..) => 30,
-                SeedType::Pea(..) => 30,
-                SeedType::Carrot(..) => 30,
-                SeedType::Tomato(..) => 30,
-                SeedType::Broccoli(..) => 30,
+                SeedType::Sunflower(..) => 12,
+                SeedType::Pea(..) => 13,
+                SeedType::Carrot(..) => 14,
+                SeedType::Tomato(..) => 11,
+                SeedType::Broccoli(..) => 21,
             },
             GrowthStage::Flowering => match seed_type {
-                SeedType::Sunflower(..) => 20,
-                SeedType::Pea(..) => 20,
+                SeedType::Sunflower(..) => 8,
+                SeedType::Pea(..) => 11,
                 SeedType::Carrot(..) => 20,
-                SeedType::Tomato(..) => 20,
-                SeedType::Broccoli(..) => 20,
+                SeedType::Tomato(..) => 7,
+                SeedType::Broccoli(..) => 16,
             },
             GrowthStage::Fruiting => match seed_type {
                 SeedType::Sunflower(..) => 10,
-                SeedType::Pea(..) => 10,
-                SeedType::Carrot(..) => 10,
-                SeedType::Tomato(..) => 10,
-                SeedType::Broccoli(..) => 10,
+                SeedType::Pea(..) => 7,
+                SeedType::Carrot(..) => 9,
+                SeedType::Tomato(..) => 5,
+                SeedType::Broccoli(..) => 7,
             },
             GrowthStage::Maturity => match seed_type {
                 SeedType::Sunflower(..) => 5,
@@ -235,11 +257,11 @@ impl GrowthStage {
                 SeedType::Broccoli(..) => 5,
             },
             GrowthStage::Harvest => match seed_type {
-                SeedType::Sunflower(..) => 5,
-                SeedType::Pea(..) => 5,
+                SeedType::Sunflower(..) => 3,
+                SeedType::Pea(..) => 3,
                 SeedType::Carrot(..) => 5,
-                SeedType::Tomato(..) => 5,
-                SeedType::Broccoli(..) => 5,
+                SeedType::Tomato(..) => 1,
+                SeedType::Broccoli(..) => 3,
             },
             GrowthStage::Rot => 0,
         }
