@@ -3,10 +3,11 @@ use crate::dto::{Crop, Farm, GrowthStage};
 use crate::seeds::SeedType;
 use std::time::Duration;
 use std::thread;
+use std::sync::Mutex;
 
 pub struct PlantService {
     farm: Farm,
-    is_harvested: bool,
+    is_all_harvested: bool,
 }
 
 static WEEDING_FARM_FREQUENCY: u32 = 7; // every 7 days
@@ -14,12 +15,13 @@ static IRRIGATION_FREQUENCY: u32 = 2; // every 2 days
 const FERTILIZING_FREQUENCY: u32 = 14; // every 14 days
 const DAYS_TO_WAIT_BEFORE_PLANTING: u32 = 7; // 7 days
 const FUMIGATION_TIME: u32 = 14; // 14 days after planting
+static TOTAL_HARVESTED_SEEDS : Mutex<u32> = Mutex::new(0);
 
 impl PlantService {
     pub fn new(farm: Farm) -> Self {
         Self {
             farm,
-            is_harvested: false,
+            is_all_harvested: false,
         }
     }
 
@@ -27,6 +29,8 @@ impl PlantService {
         let mut days_count = 1;
 
         loop {
+            println!("Day: {}", days_count);
+            println!("----------------------");
             if days_count == 1 {self.irrigate()}; // irrigate before planting
             if days_count == DAYS_TO_WAIT_BEFORE_PLANTING {self.planting()}; // plant the seeds 
             if days_count % WEEDING_FARM_FREQUENCY == 0 {self.weed()}; // weed the farm
@@ -35,19 +39,17 @@ impl PlantService {
             };
             if days_count % IRRIGATION_FREQUENCY == 0 {self.irrigate()}; // irrigate after planting
             if days_count == FUMIGATION_TIME {self.fumigate_seedlings()}; // fumigate seedlings
+            
             // process crop activities
+            self._crop_process();
+            days_count += 1;
             
-            if self.farm.is_ready_for_harvest.unwrap() {
-                self.harvest();
-            };
-            
-            if self.is_harvested { break };
-            
-            println!("Day {} completed", days_count);
-            self._crop_process(days_count);
-            days_count += 3;
+            if *TOTAL_HARVESTED_SEEDS.lock().unwrap() == self.farm.crops.len() as u32 {
+                println!("All done!");
+                self.is_all_harvested = true;
+                break;
+            }
         }
-        println!("All done!");    
     }
 
     fn fumigate_seedlings(&self) {
@@ -112,37 +114,43 @@ impl PlantService {
     fn harvest(&mut self) {
         // Simulate Harvest
         println!("Its time to harvest...");
-        self.farm.is_ready_for_harvest = Some(true);
-        self.is_harvested = true;
+        let num = TOTAL_HARVESTED_SEEDS.lock().unwrap();
+        if self.farm.crops.len() == *num as usize {
+            self.farm.is_ready_for_harvest = Some(true);
+            self.is_all_harvested = true;
+        }
         thread::sleep(Duration::from_secs(2));
         println!("Harvesting completed!!!");
         println!();
     }
 
-    fn _crop_process(&mut self, days: u32) {
+    fn _crop_process(&mut self) {
         for crop in self.farm.crops.iter_mut() {
             if crop.is_harvestable {
-                *crop = crop.clone().grow(days);
+                *crop = crop.clone().grow(1);
 
                 match crop.clone().current_stage.unwrap() {
                     GrowthStage::Germination => {
-                        println!("Crop: {:?} -> has germinated", crop.clone().verbose_name);
+                        PlantService::_show_update(crop);
                         *crop = Crop::split(crop, 4)[0].clone();
                     },
                     GrowthStage::Seedling => {
-                        PlantService::_show_update(crop, days);
+                        PlantService::_show_update(crop);
                     }
                     GrowthStage::Flowering => {
-                        PlantService::_show_update(crop, days);
+                        PlantService::_show_update(crop);
                     },
                     GrowthStage::Fruiting => {
-                        PlantService::_show_update(crop, days);
+                        PlantService::_show_update(crop);
                     },
                     GrowthStage::Maturity => {
-                        PlantService::_show_update(crop, days);
+                        PlantService::_show_update(crop);
                     },
                     GrowthStage::Harvest => {
-                        PlantService::_show_update(crop, days);
+                        PlantService::_show_update(crop);
+                        let mut num = TOTAL_HARVESTED_SEEDS.lock().unwrap();
+                        *num += 1;
+                        // println!("Crop: {:?} -> has been harvested", crop.clone().verbose_name);
                     },
                     _ => {}
                 }
@@ -150,14 +158,16 @@ impl PlantService {
         }
     }
 
-    fn _show_update(crop: &mut Crop, days: u32) {
+    fn _show_update(crop: &mut Crop) {
         let seed_type = &crop.clone().verbose_name;
-            let stage = crop.current_stage.as_ref().unwrap();
-            let flowering_time = stage.get_days(SeedType::from_str(seed_type).unwrap());
-            if days == flowering_time {
-                println!("Crop: {:?} -> {:?}", crop.clone().verbose_name, stage);
-            }
+        let stage = crop.current_stage.as_ref().unwrap();
+        let stage_time = stage.get_days(SeedType::from_str(seed_type).unwrap());
+        println!("{} -- {}", crop.days_in_stage.unwrap(), stage_time);
+        if crop.days_in_stage.unwrap() >= stage_time {
+            println!("Crop: {:?} -> {:?}", crop.clone().verbose_name, stage);
+            crop.days_in_stage = Some(0);
         }
+    }
 
     fn weed(&self) {
         // Simulate Weeding

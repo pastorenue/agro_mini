@@ -74,7 +74,7 @@ impl Crop {
             is_gmo: false,
             harvest_date: None,
             split_size: Some(1.0),
-            days_in_stage: None,
+            days_in_stage: Some(0),
             current_stage: Some(GrowthStage::Seed),
         }
     }
@@ -92,22 +92,21 @@ impl Crop {
             Some(val) => {
                 self.days_in_stage = Some(val + days);
             }
-            _ => self.days_in_stage = Some(days),
+            _ => (),
         }
-
         self._advance_stage();
+
         self
     }
 
     fn _advance_stage(&mut self) -> () {
         let seed_type = SeedType::from_str(&self.verbose_name).unwrap();
         let max_growth_days = self.current_stage.as_ref().unwrap().get_days(seed_type);
-        if self.days_in_stage.unwrap() >= max_growth_days {
-            self.days_in_stage = Some(0);
+        if self.days_in_stage.unwrap() == max_growth_days && !self.is_inactive() {
             match self.current_stage {
-                Some(GrowthStage::Seed) => self.current_stage = Some(GrowthStage::Seedling),
-                Some(GrowthStage::Seedling) => self.current_stage = Some(GrowthStage::Germination),
-                Some(GrowthStage::Germination) => self.current_stage = Some(GrowthStage::Vegetative),
+                Some(GrowthStage::Seed) => self.current_stage = Some(GrowthStage::Germination),
+                Some(GrowthStage::Germination) => self.current_stage = Some(GrowthStage::Seedling),
+                Some(GrowthStage::Seedling) => self.current_stage = Some(GrowthStage::Vegetative),
                 Some(GrowthStage::Vegetative) => self.current_stage = Some(GrowthStage::Flowering),
                 Some(GrowthStage::Flowering) => self.current_stage = Some(GrowthStage::Fruiting),
                 Some(GrowthStage::Fruiting) => self.current_stage = Some(GrowthStage::Maturity),
@@ -115,6 +114,10 @@ impl Crop {
                 _ => self.current_stage = Some(GrowthStage::Rot)
             };
         }
+    }
+
+    fn is_inactive(&self) -> bool {
+        self.current_stage == Some(GrowthStage::Rot) || self.current_stage == Some(GrowthStage::Harvest)
     }
 
     fn is_harvested(&self) -> bool {
@@ -155,7 +158,7 @@ pub enum GrowthStage {
 
 impl Default for GrowthStage {
     fn default() -> Self {
-        Self::Seedling
+        Self::Seed
     }
 }
 
@@ -245,7 +248,7 @@ impl GrowthStage {
     pub fn next(&self, event: GrowthEvent) -> GrowthStage {
         match self {
             GrowthStage::Seed => match event {
-                GrowthEvent::Sync => GrowthStage::Seedling,
+                GrowthEvent::Sync => GrowthStage::Germination,
                 GrowthEvent::Fail => GrowthStage::Rot
             }
             GrowthStage::Germination => match event {
