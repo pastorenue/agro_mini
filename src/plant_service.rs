@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use rand::prelude::*;
 use crate::dto::{Crop, Farm, GrowthStage};
 use crate::seeds::SeedType;
@@ -8,6 +10,7 @@ use std::sync::Mutex;
 pub struct PlantService {
     farm: Farm,
     is_all_harvested: bool,
+    planting_is_initiated: bool,
 }
 
 static WEEDING_FARM_FREQUENCY: u32 = 7; // every 7 days
@@ -21,6 +24,7 @@ impl PlantService {
     pub fn new(farm: Farm) -> Self {
         Self {
             farm,
+            planting_is_initiated: false,
             is_all_harvested: false,
         }
     }
@@ -42,7 +46,10 @@ impl PlantService {
             if days_count == FUMIGATION_TIME {self.fumigate_seedlings()}; // fumigate seedlings
             
             // process crop activities
-            self._crop_process();
+            if self.planting_is_initiated {
+                println!("Processing crop activities: {:?}", self.farm.crops);
+                self._crop_process();
+            }
             days_count += 1;
             
             if *TOTAL_HARVESTED_SEEDS.lock().unwrap() == self.farm.crops.len() as u32 {
@@ -83,14 +90,15 @@ impl PlantService {
         self
     }
 
-    fn planting(&self) {
+    fn planting(&mut self) {
         println!("We will be planting a total of {} seeds today", self.farm.crops.len());
-
         // Simulate planting
         let mut rng = thread_rng();
         let rand_labour = rng.gen_range(0..10); // Generate a random number between 1 and 5
         println!("Planting started...");
         thread::sleep(Duration::from_secs(rand_labour as u64));
+
+        self.planting_is_initiated = true;
 
         println!("Successfully planted all seeds!!");
         println!();
@@ -131,27 +139,36 @@ impl PlantService {
                 *crop = crop.clone().grow(1);
 
                 match crop.clone().current_stage.unwrap() {
+                    GrowthStage::Seed => {
+                        *crop = PlantService::_show_update(crop);
+                        // *crop = Crop::sow(crop);
+                    },
                     GrowthStage::Germination => {
-                        PlantService::_show_update(crop);
-                        *crop = Crop::split(crop, 4)[0].clone();
+                        let mut rng = thread_rng();
+                        let rand_size = rng.gen_range(1..5); // Generate a random number between 1 and 5
+                        *crop = Crop::split(crop, rand_size)[0].clone();
+                        *crop = PlantService::_show_update(crop);
                     },
                     GrowthStage::Seedling => {
-                        PlantService::_show_update(crop);
+                        *crop = PlantService::_show_update(crop);
+                    }
+                    GrowthStage::Vegetative => {
+                        *crop = PlantService::_show_update(crop);
                     }
                     GrowthStage::Flowering => {
-                        PlantService::_show_update(crop);
+                        *crop = PlantService::_show_update(crop);
                     },
                     GrowthStage::Fruiting => {
-                        PlantService::_show_update(crop);
+                        *crop = PlantService::_show_update(crop);
                     },
                     GrowthStage::Maturity => {
-                        PlantService::_show_update(crop);
+                        *crop = PlantService::_show_update(crop);
                     },
                     GrowthStage::Harvest => {
-                        PlantService::_show_update(crop);
+                        *crop = PlantService::_show_update(crop);
                         let mut num = TOTAL_HARVESTED_SEEDS.lock().unwrap();
                         *num += 1;
-                        // println!("Crop: {:?} -> has been harvested", crop.clone().verbose_name);
+                        println!("Crop: {:?} -> has been harvested", crop.clone().verbose_name);
                     },
                     _ => {}
                 }
@@ -159,14 +176,18 @@ impl PlantService {
         }
     }
 
-    fn _show_update(crop: &mut Crop) {
+    fn _show_update(crop: &mut Crop) -> Crop {
         let seed_type = &crop.clone().verbose_name;
         let stage = crop.current_stage.as_ref().unwrap();
         let stage_time = stage.get_days(SeedType::from_str(seed_type).unwrap());
-        if crop.days_in_stage.unwrap() >= stage_time {
-            println!("Crop: {:?} -> {:?}", crop.clone().verbose_name, stage);
+        println!("{}: {} --> {}",crop.verbose_name, crop.days_in_stage.unwrap(), stage_time);
+        if crop.days_in_stage.unwrap() == stage_time {
+            println!("Crop: {:?} --> {:?} stage", crop.clone().verbose_name, stage);
+            crop.advance_to_next_stage();
             crop.days_in_stage = Some(0);
         }
+
+        crop.clone()
     }
 
     fn weed(&self) {
