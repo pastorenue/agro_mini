@@ -29,6 +29,7 @@ impl PlantService {
         let mut days_count = 1;
 
         loop {
+            println!();
             println!("Day: {}", days_count);
             println!("----------------------");
             if days_count == 1 {self.irrigate()}; // irrigate before planting
@@ -162,7 +163,6 @@ impl PlantService {
         let seed_type = &crop.clone().verbose_name;
         let stage = crop.current_stage.as_ref().unwrap();
         let stage_time = stage.get_days(SeedType::from_str(seed_type).unwrap());
-        println!("{} -- {}", crop.days_in_stage.unwrap(), stage_time);
         if crop.days_in_stage.unwrap() >= stage_time {
             println!("Crop: {:?} -> {:?}", crop.clone().verbose_name, stage);
             crop.days_in_stage = Some(0);
