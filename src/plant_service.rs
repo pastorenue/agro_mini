@@ -26,6 +26,7 @@ const FUMIGATION_TIME: u32 = 14; // 14 days after planting
 const PLANTING_WINDOW: u32 = 70; // 70 days - from planting to harvest
 static TOTAL_HARVESTED_SEEDS : Mutex<u32> = Mutex::new(0);
 static TOTAL_ROTTEN_SEEDS: Mutex<u32> = Mutex::new(0);
+const CLEAR: &str = "\x1B[2J\x1B[1;1H"; // clear the console
 
 impl PlantService {
     pub fn new(farm: Farm) -> Self {
@@ -60,7 +61,7 @@ impl PlantService {
             }
             days_count += 1;
             
-            if days_count >= PLANTING_WINDOW {
+            if days_count >= PLANTING_WINDOW { // harvesting can take place any time from now.
                 self.harvest();
                 self.end_farming_simulation(); // Terminate farming simulation.
                 if self.is_all_harvested {

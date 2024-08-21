@@ -85,3 +85,11 @@ struct WeatherMetadata {
 impl WeatherData {
 
 }
+
+enum Climate {
+    // E.g. Autumn(WeatherCondition::Cloudy, 21.),
+    Autumn(WeatherCondition, f32),
+    Spring(WeatherCondition, f32), 
+    Summer(WeatherCondition, f32), 
+    Winter(WeatherCondition, f32), 
+}
