@@ -84,6 +84,4 @@ pub fn split_a_crop() {
     println!("Length of crops after split: {}", crops.len());
     let x_crop = first_crop.simulate_growth();
     println!("First crop: {:?}", x_crop);
-    println!("New split_size of first_crop: {:?}", x_crop.split_size);
-    println!("{:?}", x_crop.current_stage.unwrap_or_default());
 }

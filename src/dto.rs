@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 use rand::prelude::*;
 use serde::Deserialize;
 
@@ -13,16 +13,19 @@ pub struct Crop {
     pub verbose_name: String,
     pub species: String,
     pub is_harvestable: bool,
-    pub is_sowable: bool,
+    pub is_sown: bool,
     pub is_gmo: bool,
     pub description: Option<String>,
     pub harvest_date: Option<String>,
+    pub date_rot_detected: Option<String>,
     pub split_size: Option<f32>,
     pub days_in_stage: Option<u32>,
     #[serde(flatten)]
     pub current_stage: Option<GrowthStage>,
 }
 
+
+#[derive(Debug)]
 pub struct Location {
     pub address: Address,
     pub is_virtual: bool,
@@ -30,6 +33,7 @@ pub struct Location {
     pub latitude : Option<f32>,
 }
 
+#[derive(Debug)]
 pub struct Address {
     pub house_number: u32,
     pub post_code: String,
@@ -38,11 +42,14 @@ pub struct Address {
     pub country: String,
 }
 
+#[derive(Debug)]
 pub struct FarmSize {
     pub width: u32,
     pub length: u32
 }
 
+
+#[derive(Debug)]
 pub struct UserInfo {
     pub first_name: String,
     pub last_name: String,
@@ -52,6 +59,8 @@ pub struct UserInfo {
     pub website_url: Option<String>,
 }
 
+
+#[derive(Debug)]
 pub struct Farm {
     pub crops: Vec<Crop>,
     pub location: Location,
@@ -72,74 +81,46 @@ impl Crop {
             species: species,
             description: description,
             is_harvestable: true,
-            is_sowable: true,
+            is_sown: false,
             is_gmo: false,
             harvest_date: None,
+            date_rot_detected: None,
             split_size: Some(1.0),
             days_in_stage: Some(0),
             current_stage: Some(GrowthStage::Seed),
         }
     }
 
-    pub fn simulate_growth(self) -> Self {
+    pub fn simulate_growth(&mut self) -> () {
         let mut rng = thread_rng();
         let rand_days = rng.gen_range(1..5); // Generate a random number between 1 and 5
 
         println!("Random number: {}", &rand_days);
-        return self.grow(rand_days as u32);
+        self.grow(rand_days as u32);
     }
 
-    pub fn grow(mut self, days: u32) -> Self {
+    pub fn grow(&mut self, days: u32) -> () {
         match self.days_in_stage {
             Some(val) => {
                 self.days_in_stage = Some(val + days);
             }
             _ => (),
         }
-
-        self
     }
 
     pub fn advance_to_next_stage(&mut self) -> () {
         let seed_type = SeedType::from_str(&self.verbose_name).unwrap();
         let max_growth_days = self.current_stage.as_ref().unwrap().get_days(seed_type);
+        let current_stage = self.current_stage.as_ref().unwrap();
         if self.days_in_stage.unwrap() == max_growth_days && !self.is_inactive() {
-            match self.current_stage {
-                Some(GrowthStage::Seed) => {
-                    println!("Transiting from {:?} -> {:?}",self.current_stage.as_ref().unwrap(), GrowthStage::Germination);
-                    self.current_stage = Some(GrowthStage::Germination)
-                },
-                Some(GrowthStage::Germination) => {
-                    println!("Transiting from {:?} -> {:?}", self.current_stage.as_ref().unwrap(), GrowthStage::Seedling);
-                    self.current_stage = Some(GrowthStage::Seedling)
-                },
-                Some(GrowthStage::Seedling) => {
-                    println!("Transiting from {:?} -> {:?}", self.current_stage.as_ref().unwrap(), GrowthStage::Vegetative);
-                    self.current_stage = Some(GrowthStage::Vegetative)
-                },
-                Some(GrowthStage::Vegetative) => {
-                    println!("Transiting from {:?} -> {:?}", self.current_stage.as_ref().unwrap(), GrowthStage::Flowering);
-                    self.current_stage = Some(GrowthStage::Flowering)
-                },
-                Some(GrowthStage::Flowering) => {
-                    println!("Transiting from {:?} -> {:?}", self.current_stage.as_ref().unwrap(), GrowthStage::Fruiting);
-                    self.current_stage = Some(GrowthStage::Fruiting)
-                },
-                Some(GrowthStage::Fruiting) => {
-                    println!("Transiting from {:?} -> {:?}", self.current_stage.as_ref().unwrap(), GrowthStage::Maturity);
-                    self.current_stage = Some(GrowthStage::Maturity)
-                },
-                Some(GrowthStage::Maturity) => {
-                    println!("Transiting from {:?} -> {:?}", self.current_stage.as_ref().unwrap(), GrowthStage::Harvest);
-                    self.current_stage = Some(GrowthStage::Harvest)
-                },
-                _ => self.current_stage = Some(GrowthStage::Rot)
-            };
+            let next_stage = GrowthStage::next(&current_stage);
+            println!("Transiting from {:?} -> {:?}",current_stage, next_stage);
+            self.current_stage = Some(next_stage);
         }
     }
 
     pub fn is_inactive(&self) -> bool {
-        self.current_stage == Some(GrowthStage::Rot) || self.current_stage == Some(GrowthStage::Harvest)
+        self.current_stage == Some(GrowthStage::Failed) || self.current_stage == Some(GrowthStage::Harvest)
     }
 
     pub fn is_harvested(&self) -> bool {
@@ -159,8 +140,12 @@ impl Crop {
         splits
     }
 
-    fn apply_fertilizer(&mut self) -> () {
-        // TODO
+    pub fn sow(&mut self) -> () {
+        self.is_sown = true;
+    }
+
+    pub fn has_issues(&self) -> bool {
+        self.date_rot_detected.is_some() && self.current_stage == Some(GrowthStage::Failed)
     }
 }
 
@@ -175,7 +160,7 @@ pub enum GrowthStage {
     Fruiting,
     Maturity,
     Harvest,
-    Rot,
+    Failed,
 }
 
 impl Default for GrowthStage {
@@ -184,7 +169,7 @@ impl Default for GrowthStage {
     }
 }
 
-
+#[derive(Debug)]
 pub enum GrowthEvent {
     Sync,
     Fail,
@@ -201,7 +186,7 @@ impl GrowthStage {
             GrowthStage::Fruiting => String::from("fruiting"),
             GrowthStage::Maturity => String::from("maturity"),
             GrowthStage::Harvest => String::from("harbest"),
-            GrowthStage::Rot => String::from("rot"),
+            GrowthStage::Failed => String::from("Failed"),
         }
     }
 
@@ -263,41 +248,50 @@ impl GrowthStage {
                 SeedType::Tomato(..) => 1,
                 SeedType::Broccoli(..) => 3,
             },
-            GrowthStage::Rot => 0,
+            GrowthStage::Failed => 0,
         }
     }
 
-    pub fn next(&self, event: GrowthEvent) -> GrowthStage {
-        match self {
+    pub fn next(instance: &GrowthStage) -> GrowthStage {
+        let mut rng = rand::thread_rng();
+        let event_idx = rng.gen_range(0..=50);
+        let rot_idx =  event_idx % 21 == 0;
+        let event = if rot_idx {
+            GrowthEvent::Fail
+        } else {
+            GrowthEvent::Sync
+        };
+        println!("{:?} -> {:?}", instance, event);
+        match instance {
             GrowthStage::Seed => match event {
                 GrowthEvent::Sync => GrowthStage::Germination,
-                GrowthEvent::Fail => GrowthStage::Rot
+                GrowthEvent::Fail => GrowthStage::Failed
             }
             GrowthStage::Germination => match event {
                 GrowthEvent::Sync => GrowthStage::Seedling,
-                GrowthEvent::Fail => GrowthStage::Rot
+                GrowthEvent::Fail => GrowthStage::Failed
             },
             GrowthStage::Seedling => match event {
                 GrowthEvent::Sync => GrowthStage::Vegetative,
-                GrowthEvent::Fail => GrowthStage::Rot
+                GrowthEvent::Fail => GrowthStage::Failed
             },
             GrowthStage::Vegetative => match event {
                 GrowthEvent::Sync => GrowthStage::Flowering,
-                GrowthEvent::Fail => GrowthStage::Rot
+                GrowthEvent::Fail => GrowthStage::Failed
             },
             GrowthStage::Flowering => match event {
                 GrowthEvent::Sync => GrowthStage::Fruiting,
-                GrowthEvent::Fail => GrowthStage::Rot
+                GrowthEvent::Fail => GrowthStage::Failed
             },
             GrowthStage::Fruiting => match event {
                 GrowthEvent::Sync => GrowthStage::Maturity,
-                GrowthEvent::Fail => GrowthStage::Rot
+                GrowthEvent::Fail => GrowthStage::Failed
             },
             GrowthStage::Maturity => match event {
                 GrowthEvent::Sync => GrowthStage::Harvest,
-                GrowthEvent::Fail => GrowthStage::Rot
+                GrowthEvent::Fail => GrowthStage::Failed
             },
-            _ => GrowthStage::Rot
+            _ => GrowthStage::Failed
         }
     }
 }
@@ -309,4 +303,20 @@ impl FarmSize {
             length
         }
     }
+}
+
+#[derive(Debug)]
+struct Stats {
+    growth_cycle: u32,
+    num_seeds_planted: u32,
+    num_harvested: u32,
+    num_rotten: u32,
+    harvest_date: Option<String>,
+}
+
+#[derive(Debug)]
+struct HarvestData {
+    farm: Farm,
+    harvest_stats: HashMap<String, Stats>,
+    metadata: Option<HashMap<String, String>>
 }
