@@ -15,7 +15,7 @@ pub struct PlantService {
     farm: Farm,
     is_all_harvested: bool,
     planting_is_initiated: bool,
-    harvest_stats: Option<HashMap<String, u32>>,
+    harvest_stats: HashMap<String, HashMap<String, u32>>,
 }
 
 static WEEDING_FARM_FREQUENCY: u32 = 7; // every 7 days
@@ -25,15 +25,15 @@ const DAYS_TO_WAIT_BEFORE_PLANTING: u32 = 7; // 7 days
 const FUMIGATION_TIME: u32 = 14; // 14 days after planting
 const PLANTING_WINDOW: u32 = 70; // 70 days - from planting to harvest
 static TOTAL_HARVESTED_SEEDS : Mutex<u32> = Mutex::new(0);
+static TOTAL_ROTTEN_SEEDS: Mutex<u32> = Mutex::new(0);
 
 impl PlantService {
     pub fn new(farm: Farm) -> Self {
-        let harvest_stats: HashMap<_, _> = HashMap::new();
         Self {
             farm,
             planting_is_initiated: false,
             is_all_harvested: false,
-            harvest_stats: Some(harvest_stats),
+            harvest_stats: HashMap::new(),
         }
     }
 
@@ -62,6 +62,7 @@ impl PlantService {
             
             if days_count >= PLANTING_WINDOW {
                 self.harvest();
+                self.end_farming_simulation(); // Terminate farming simulation.
                 if self.is_all_harvested {
                     break;
                 }
@@ -141,79 +142,95 @@ impl PlantService {
         // Simulate Harvest
         let mut rng = thread_rng();
         let rand_harvest_duration = rng.gen_range(1..5); // Generate a random number between 1 and 5
-        let num = TOTAL_HARVESTED_SEEDS.lock().unwrap();
-        if self.farm.crops.len() == *num as usize {
+        thread::sleep(Duration::from_secs(rand_harvest_duration));
+        println!();
+    }
+
+    fn end_farming_simulation(&mut self) {
+        // Simulate Termination
+        let num_harvested = TOTAL_HARVESTED_SEEDS.lock().unwrap();
+        let num_rotten = TOTAL_ROTTEN_SEEDS.lock().unwrap();
+        if self.farm.crops.len() == (*num_rotten + *num_harvested) as usize {
+            let mut _stats = Some(HarvestStats {num_harvested: *num_harvested, num_rotten: *num_rotten});
+            // self.harvest_stats.insert("rotten".to_string(), *num_rotten);
+            // self.harvest_stats.insert("harvested".to_string(), *num_harvested );
             self.farm.is_ready_for_harvest = Some(true);
             self.is_all_harvested = true;
         }
-        thread::sleep(Duration::from_secs(rand_harvest_duration));
-        println!();
     }
 
     fn _crop_process(&mut self, current_days: u32) {
         for crop in self.farm.crops.iter_mut() {
             if crop.is_harvestable {
-                *crop = crop.clone().grow(1);
-
-                match crop.clone().current_stage.unwrap() {
-                    GrowthStage::Seed => {
-                        *crop = PlantService::_show_update(crop);
-                        // *crop = Crop::sow(crop);
+                crop.grow(1);
+                match crop.current_stage {
+                    Some(GrowthStage::Seed) => {
+                        Crop::sow(crop);
+                        PlantService::_check_for_update(crop);
                     },
-                    GrowthStage::Germination => {
-                        let mut rng = thread_rng();
-                        let rand_size = rng.gen_range(1..5); // Generate a random number between 1 and 5
-                        *crop = Crop::split(crop, rand_size)[0].clone();
-                        *crop = PlantService::_show_update(crop);
+                    Some(GrowthStage::Germination) => {
+                        PlantService::_check_for_update(crop);
                     },
-                    GrowthStage::Seedling => {
-                        *crop = PlantService::_show_update(crop);
+                    Some(GrowthStage::Seedling) => {
+                        PlantService::_check_for_update(crop);
                     }
-                    GrowthStage::Vegetative => {
-                        *crop = PlantService::_show_update(crop);
+                    Some(GrowthStage::Vegetative) => {
+                        PlantService::_check_for_update(crop);
                     }
-                    GrowthStage::Flowering => {
-                        *crop = PlantService::_show_update(crop);
+                    Some(GrowthStage::Flowering) => {
+                        PlantService::_check_for_update(crop);
                     },
-                    GrowthStage::Fruiting => {
-                        *crop = PlantService::_show_update(crop);
+                    Some(GrowthStage::Fruiting) => {
+                        PlantService::_check_for_update(crop);
                     },
-                    GrowthStage::Maturity => {
-                        *crop = PlantService::_show_update(crop);
+                    Some(GrowthStage::Maturity) => {
+                        PlantService::_check_for_update(crop);
                     },
-                    GrowthStage::Harvest => {
+                    Some(GrowthStage::Harvest) => {
                         let mut num = TOTAL_HARVESTED_SEEDS.lock().unwrap();
                         if !crop.is_harvested() {
                             *num += 1;
                             crop.harvest_date = Some(Utc::now().to_string());
-                            let map: &mut HashMap<String, u32> = self.harvest_stats.as_mut().unwrap();
-                            if !map.contains_key(&crop.verbose_name) {
-                                map.insert(crop.verbose_name.to_string(), current_days);
-                            }
+                            let inner_map = self.harvest_stats
+                                                                        .entry(crop.verbose_name.to_string())
+                                                                        .or_insert_with(HashMap::new);
+                            *inner_map.entry("havested".to_string())
+                                .or_insert(0) += 1;
                             println!(
                                 "Crop: {:?} -> Harvest completed after {} days!!!",
-                                crop.clone().verbose_name,
+                                crop.verbose_name,
                                 current_days
                             );
                         }
                     },
-                    _ => {}
+                    Some(GrowthStage::Failed) => {
+                        if !crop.has_issues() {
+                            let mut num = TOTAL_ROTTEN_SEEDS.lock().unwrap();
+                            *num += 1;
+                            crop.date_rot_detected = Some(Utc::now().to_string());
+                            println!("Crop: {:?} -> Failed after {} days!!!", crop.verbose_name, current_days);
+                            let inner_map = self.harvest_stats
+                                                                        .entry(crop.verbose_name.to_string())
+                                                                        .or_insert_with(HashMap::new);
+                            *inner_map.entry("failed".to_string())
+                                .or_insert(0) += 1;
+                        }
+                    }
+                    _ => ()
                 }
             };
         }
     }
 
-    fn _show_update(crop: &mut Crop) -> Crop {
-        let seed_type = &crop.clone().verbose_name;
+    fn _check_for_update(crop: &mut Crop) -> () {
+        let seed_type = crop.verbose_name.as_str();
         let stage = crop.current_stage.as_ref().unwrap();
         let stage_time = stage.get_days(SeedType::from_str(seed_type).unwrap());
-        if crop.days_in_stage.unwrap() == stage_time && !crop.is_inactive() {
-            print!("{:?} --> {:?} stage | ", crop.clone().verbose_name, stage);
+        if (crop.days_in_stage.unwrap() == stage_time) && !crop.is_inactive() {
+            print!("{:?} --> {:?} stage | ", crop.verbose_name, stage);
             crop.advance_to_next_stage();
             crop.days_in_stage = Some(0);
         }
-
-        crop.clone()
     }
 
     fn weed(&self) {
@@ -223,4 +240,9 @@ impl PlantService {
         println!("Weeding completed");
         println!();
     }
+}
+
+struct HarvestStats {
+    num_harvested: u32,
+    num_rotten: u32
 }
