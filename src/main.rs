@@ -4,6 +4,8 @@ mod plant_service;
 mod setup;
 mod seeds;
 mod weather_service;
+mod file_ops;
+mod os;
 
 use setup::setup_farm;
 use crate::plant_service::PlantService;
